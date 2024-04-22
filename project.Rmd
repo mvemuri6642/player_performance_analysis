@@ -1,0 +1,892 @@
+---
+title: "DPA Project"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you e
+xecute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+df <- read.csv("2021-2022 Football Player Stats.csv", sep=";")
+print(df)
+print(dim(df))
+```
+
+
+
+```{r}
+print(any(is.na(df)))
+print(colSums(is.na(df)))
+```
+
+
+```{r}
+missing_values <- colSums(is.na(df))
+columns_with_missing <- names(missing_values[missing_values > 0])
+for (column in columns_with_missing) {
+  num_missing <- sum(is.na(df[[column]]))
+  cat("Column:", column, "\tNumber of missing rows:", num_missing, "\n")
+}
+```
+Fill Missing Values
+
+```{r}
+column_mean <- mean(df[['Age']], na.rm = TRUE)
+df[['Age']][is.na(df[['Age']])] <- column_mean
+```
+
+
+```{r}
+duplicate_rows <- df[duplicated(df), ]
+if (nrow(duplicate_rows) > 0) {
+  print("Duplicate Rows:")
+  print(duplicate_rows)
+  df <- unique(df)
+  print("Duplicate rows removed.")
+} else {
+  print("No duplicate rows found.")
+}
+```
+
+```{r}
+df[['Pos']]<- gsub(paste(c("DFFW", "DFMF"), collapse = "|"), 'DF' , df$Pos)
+df[['Pos']]<- gsub(paste(c("FWDF", "FWMF"), collapse = "|"), 'FW' , df$Pos)
+df[['Pos']]<- gsub(paste(c("MFDF", "MFFW"), collapse = "|"), 'MF' , df$Pos)
+print(unique(df$Pos))
+```
+```{r}
+
+categorize_continents <- function(nation) {
+  africa <- c("MAR", "GHA", "CIV", "NGA", "CMR", "ZAM", "GAM", "MLI", "TUN", "BFA", "COD", "GUI", "ROU", "GAB", "CPV", "ALG", "GAM", "COM", "CGO", "EGY", "MAD", "TUN", "GUI", "CMR", "HAI", "MOZ", "BDI", "GEO", "GUF", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE", "GUF", "MOZ", "BDI", "GEO", "ZIM", "SLE")
+  asia <- c("ARM", "JPN", "KVX", "IRN", "TUR", "GEO", "UZB", "PHI", "ISR", "UZB")
+  europe <- c("FRA", "DEN", "ENG", "ITA", "SCO", "GER", "SUI", "ESP", "AUT", "NOR", "NED", "POR", "ALB", "WAL", "SRB", "BUL", "CRO", "IRL", "LUX", "MNE", "RUS", "HUN", "SVK", "LTU", "LAT", "EST", "MKD", "SVN", "BIH", "POL", "SVK", "LTU", "LVA", "HUN", "RUS", "UKR", "LTU", "LVA", "EST", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE", "GRE", "CYP", "CTA", "UKR", "LVA", "GEO", "MNE")
+  north_america <- c("USA", "CAN", "MEX")
+  south_america <- c("BRA", "ARG", "CHI", "PAR", "URU", "COL", "PER", "ECU", "VEN")
+  
+  if (nation %in% africa) {
+    return("Africa")
+  } else if (nation %in% asia) {
+    return("Asia")
+  } else if (nation %in% europe) {
+    return("Europe")
+  } else if (nation %in% north_america) {
+    return("North America")
+  } else if (nation %in% south_america) {
+    return("South America")
+  } else {
+    return("Other")
+  }
+}
+library(ggplot2)
+df$Continent <- sapply(df$Nation, categorize_continents)
+ggplot(df, aes(x = Continent, fill = Nation)) +
+  geom_bar() +
+  labs(title = " Number of players by continent", x = "Continent", y = "Count") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+```{r}
+# A bar plot for the number of players from the top 10 nationalities
+nationality_counts <- table(df$Nation)
+top_n <- 10
+top_nationalities <- names(head(sort(nationality_counts, decreasing = TRUE), n = top_n))
+top_n_df <- data.frame(Nationality = factor(top_nationalities, levels = top_nationalities),
+                       Frequency = as.numeric(nationality_counts[top_nationalities]))
+ggplot(top_n_df, aes(x = Nationality, y = Frequency, fill = Nationality)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = Frequency), vjust = -0.5, color = "black", size = 3) +  
+  labs(title = paste("Top", top_n, "Nationalities"), x = "Nationality", y = "Frequency") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+```{r}
+ggplot(df, aes(x = Pos, fill = Pos)) +
+  geom_bar(color = "black", show.legend = FALSE) +
+  labs(title = "Distribution of Players by Position",
+       x = "Position",
+       y = "Number of Players") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(color = "black"),
+        legend.position = "none") +
+  scale_fill_viridis_d()  
+```
+
+
+
+```{r}
+library(dplyr)
+ggplot(df, aes(y = Age)) +
+  geom_boxplot(fill = "skyblue", color = "black") +
+  labs(title = "Box Plot of Player Ages",
+       x = "",
+       y = "Age") +
+  theme_minimal()
+boxplot.stats(df$Age)$out
+```
+
+
+```{r}
+# check for outliers using boxplot for the Matches Played Column 
+ggplot(df, aes(y = MP)) +
+  geom_boxplot(fill = "orange", color = "black") +
+  labs(title = "Box Plot of Matches Played",
+       x = "",
+       y = "Matches Played") +
+  theme_minimal()
+boxplot.stats(df$MP)$out   # Shows there are no outliers
+```
+
+
+```{r}
+ggplot(df, aes(y = Goals)) +
+  geom_boxplot(fill = "green", color = "black") +
+  labs(title = "Box Plot of Goals Scored",
+       x = "",
+       y = "Goals Scored") +
+  theme_minimal()
+boxplot.stats(df$Goals)$out
+```
+
+
+```{r}
+sum(is.na(df$Min))
+df$Min <- as.numeric(df$Min)
+library(ggplot2)
+ggplot(df, aes(x = Pos, y = Min, fill = Pos)) +
+  geom_boxplot() +
+  labs(title = "Comparison of Minutes Played Across Positions",
+       x = "Position",
+       y = "Minutes Played") +
+  theme_minimal()
+```
+
+```{r}
+# Assuming 'player_data' is your dataset
+ggplot(df, aes(x = Comp, fill = Comp)) +
+  geom_bar() +
+  labs(title = "Count of Players in Each League",
+       x = "League",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+```
+```{r}
+# ANOVA TEST
+model <- aov(Goals ~ Pos, data = df)
+summary(model)
+tukey_result <- TukeyHSD(model)
+print(tukey_result)
+```
+
+```{r}
+ggplot(df, aes(x = Pos, y = Goals, fill = Pos)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Positions vs. Goals Scored",
+       x = "Position",
+       y = "Goals Scored") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+#install.packages('viridis')
+library(viridis)
+average_stats <- df %>%
+  group_by(Pos) %>%
+  summarise(
+    avg_goals = mean(Goals),
+    avg_assists = mean(Assists),
+    avg_touches = mean(Touches)
+  )
+average_stats_long <- tidyr::gather(average_stats, key = "Variable", value = "Average", -Pos)
+
+ggplot(average_stats_long, aes(x = Pos, y = Average, fill = Variable)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Average Goals, Assists, and Touches by Player Position",
+       x = "Player Position",
+       y = "Average Value",
+       fill = "Variable") +
+  scale_fill_viridis(discrete = TRUE) +  # Using a better color palette
+  theme_minimal() +
+  theme(legend.position = "top", axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(average_stats_long, aes(x = Pos, y = Average, color = Variable, group = Variable)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Average Goals, Assists, and Touches by Player Position",
+       x = "Player Position",
+       y = "Average Value",
+       color = "Variable") +
+  scale_color_viridis(discrete = TRUE) +
+  theme_minimal() +
+  theme(legend.position = "top", axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+position_counts <- df %>%
+  group_by(Pos) %>%
+  summarise(count = n())
+average_stats_long <- tidyr::gather(average_stats, key = "Variable", value = "Average", -Pos)
+cat("Counts by Position:\n")
+print(position_counts)
+cat("\nAverage Stats by Position:\n")
+print(average_stats)
+```
+
+
+```{r}
+summary_stats <- df %>%
+  group_by(Pos) %>%
+  summarise(
+    mean_goals = mean(Goals),
+    median_goals = median(Goals),
+    sd_goals = sd(Goals),
+    mean_assists = mean(Assists),
+    median_assists = median(Assists),
+    sd_assists = sd(Assists),
+    mean_touches = mean(Touches),
+    median_touches = median(Touches),
+    sd_touches = sd(Touches)
+  )
+print("Summary Statistics by Player Position:")
+summary_data <- summary_stats[summary_stats$Pos != "GKMF", ]
+print(summary_data)
+```
+
+```{r}
+ggplot(df, aes(x = Pos, y = Assists, fill = Pos)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Positions vs. Assists ",
+       x = "Position",
+       y = "Assists") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+correlation_coef <- cor(df$Goals, df$Assists)
+print(correlation_coef) # check for linear relationship between the two columns
+```
+```{r}
+# Scatter plot of goals scored vs assists
+library(ggplot2)
+ggplot(df, aes(x = Goals, y = Assists, color = Pos)) +
+  geom_point() +
+  labs(title = "Scatter Plot: Goals Scored vs. Assists by Position",
+       x = "Goals Scored",
+       y = "Assists") +
+  scale_color_discrete(name = "Position")
+```
+
+```{r}
+# chisq test
+chisq_result <- chisq.test(table(df$Nation, df$Pos))
+print(chisq_result)
+```
+```{r}
+# Since the p-value is less than 0.05, you would reject the null hypothesis and conclude that there is a statistically significant association between the "Nation" and "Pos" variables in your dataset.
+# Select relevant columns for correlation analysis
+selected_columns <- c("Goals", "Assists", "MP", "Touches")
+subset_data <- df[, selected_columns]
+```
+
+```{r}
+# Calculate the correlation matrix for the selected columns
+correlation_matrix_subset <- cor(subset_data)
+print(correlation_matrix_subset)
+df$Age_Group <- cut(df$Age, breaks = c(0, 25, 32, 35, Inf),
+                             labels = c("Under 25", "25-32", "32-35", "35+"))
+
+# Print the count of players in each age group
+age_group_counts <- table(df$Age_Group)
+print(age_group_counts)
+```
+```{r}
+# Maximum Forward values
+max_goals <-  max(df$Goals, na.rm = TRUE)
+max_assists <-  max(df$Assists, na.rm = TRUE)
+max_shots <- max(df$Shots, na.rm = TRUE)
+max_SoT <- max(df$SoT, na.rm = TRUE)
+max_SCA <- max(df$SCA, na.rm = TRUE)
+max_GCA <- max(df$GCA, na.rm = TRUE)
+
+
+#Midfield maximum values
+
+max_Tkl <- max(df$Tkl, na.rm= TRUE)
+max_Int <- max(df$Int, na.rm= TRUE)
+max_PasTotCmp <- max(df$PasTotCmp, na.rm= TRUE)
+max_PasAss <- max(df$PasAss, na.rm= TRUE)
+max_PPA <- max(df$PPA, na.rm= TRUE)
+
+# Defender maximum values
+max_Clr <- max(df$Clr, na.rm= TRUE)
+max_AerWon <- max(df$AerWon, na.rm=TRUE)
+max_Blocks<- max(df$Blocks, na.rm=TRUE)
+max_TklDef3rd<- max(df$TklDef3rd, na.rm=TRUE)
+df$ScaledPerformance <- rep(NA, nrow(df))
+```
+
+
+```{r}
+calculate_forward_metric <- function(x) {
+  # Assigning weights
+  w_goals = 0.3
+  w_assists = 0.2
+  w_shots = 0.1
+  w_sot = 0.2
+  w_sca = 0.1
+  w_gca = 0.1
+  
+  # Calculating weighted values
+  goals_value <- (as.numeric(x$Goals) / max_goals) * 100 * w_goals
+  assists_value <- (as.numeric(x$Assists) / max_assists) * 100 * w_assists
+  shots_value <- (as.numeric(x$Shots) / max_shots) * 100 * w_shots
+  sot_value <- (as.numeric(x$SoT) / max_SoT) * 100 * w_sot
+  sca_value <- (as.numeric(x$SCA) / max_SCA) * 100 * w_sca
+  gca_value <- (as.numeric(x$GCA) / max_GCA) * 100 * w_gca
+  
+  # Summing weighted values for final performance metric
+  pm <- goals_value + assists_value + shots_value + sot_value + sca_value + gca_value
+  return(pm)
+}
+
+calculate_midfielder_metric <- function(x) {
+  # Assigning weights
+  w_tackles = 0.15
+  w_interceptions = 0.15
+  w_passes_total_cmp = 0.2
+  w_passes_assisted = 0.2
+  w_ppa = 0.15
+  w_sca = 0.15
+  
+  # Calculating weighted values
+  tackles_value <- (as.numeric(x$Tkl) / max_Tkl) * 100 * w_tackles
+  interceptions_value <- (as.numeric(x$Int) / max_Int) * 100 * w_interceptions
+  passes_total_cmp_value <- (as.numeric(x$PasTotCmp) / max_PasTotCmp) * 100 * w_passes_total_cmp
+  passes_assisted_value <- (as.numeric(x$PasAss) / max_PasAss) * 100 * w_passes_assisted
+  ppa_value <- (as.numeric(x$PPA) / max_PPA) * 100 * w_ppa
+  sca_value <- (as.numeric(x$SCA) / max_SCA) * 100 * w_sca
+  
+  # Summing weighted values for final performance metric
+  pm <- tackles_value + interceptions_value + passes_total_cmp_value + passes_assisted_value + ppa_value + sca_value
+  return(pm)
+}
+
+
+calculate_defender_metric <- function(x) {
+  # Assigning weights
+  w_clearances = 0.2
+  w_aerial_duels_won = 0.2
+  w_blocks = 0.2
+  w_tackles_def_3rd = 0.2
+  w_tackles = 0.1
+  w_interceptions = 0.1
+  
+  # Calculating weighted values
+  clearances_value <- (as.numeric(x$Clr) / max_Clr) * 100 * w_clearances
+  aerial_duels_won_value <- (as.numeric(x$AerWon) / max_AerWon) * 100 * w_aerial_duels_won
+  blocks_value <- (as.numeric(x$Blocks) / max_Blocks) * 100 * w_blocks
+  tackles_def_3rd_value <- (as.numeric(x$TklDef3rd) / max_TklDef3rd) * 100 * w_tackles_def_3rd
+  tackles_value <- (as.numeric(x$Tkl) / max_Tkl) * 100 * w_tackles
+  interceptions_value <- (as.numeric(x$Int) / max_Int) * 100 * w_interceptions
+  
+  # Summing weighted values for final performance metric
+  pm <- clearances_value + aerial_duels_won_value + blocks_value + tackles_def_3rd_value + tackles_value + interceptions_value
+  return(pm)
+}
+
+
+for (i in 1:nrow(df)) {
+  x <- df[i, ]
+  
+  if (x$Pos == 'FW') {
+    df$PerformanceMetric[i] <- calculate_forward_metric(x)
+  } else if (x$Pos == 'MF') {
+    df$PerformanceMetric[i] <- calculate_midfielder_metric(x)
+  } else if (x$Pos == 'DF') {
+    df$PerformanceMetric[i] <- calculate_defender_metric(x)
+  }
+  
+  # Print the performance metric for each player (except for goalkeepers)
+  if (x$Pos %in% c('FW', 'MF', 'DF')) {
+    cat("Player:", x$Player, "| Position:", x$Pos, "| Performance Metric:", df$PerformanceMetric[i], "\n")
+  }
+}
+```
+
+```{r}
+fw_players <- df[df$Pos == 'FW', ]
+linear_model_fw <- lm(PerformanceMetric ~ Age, data = fw_players)
+summary(linear_model_fw)
+correlation <- cor(fw_players$Age, fw_players$PerformanceMetric, use = "complete.obs")
+print(paste("Pearson correlation coefficient:", correlation))
+```
+
+```{r}
+ggplot(fw_players, aes(x = Age, y = PerformanceMetric)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Age vs Performance Metric for  Players",
+       x = "Age",
+       y = "Performance Metric") +
+  theme_minimal()
+```
+
+```{r}
+correlation <- cor(fw_players$MP, fw_players$PerformanceMetric, use = "complete.obs")
+print(paste("Pearson correlation coefficient:", correlation))
+```
+```{r}
+linear_model <- lm(PerformanceMetric ~ MP, data = fw_players)
+summary(linear_model)
+```
+
+```{r}
+ggplot(fw_players, aes(x = MP, y = PerformanceMetric)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(title = "Scatter Plot of Matches Played vs Performance Metric with Regression Line",
+       x = "Matches Played",
+       y = "Performance Metric") +
+  theme_minimal()
+```
+
+
+```{r}
+mf_players <- df[df$Pos == 'MF', ]
+linear_model_mf_age <- lm(PerformanceMetric ~ Age, data = mf_players)
+summary(linear_model_mf_age)
+linear_model_mf_mp <- lm(PerformanceMetric ~ MP, data = mf_players)
+summary(linear_model_mf_mp)
+```
+
+
+```{r}
+ggplot(mf_players, aes(x = Age, y = PerformanceMetric)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Age vs Performance Metric for MF Players",
+       x = "Age",
+       y = "Performance Metric") +
+  theme_minimal()
+ggplot(mf_players, aes(x = MP, y = PerformanceMetric)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Matches Played vs Performance Metric for MF Players",
+       x = "Matches Played",
+       y = "Performance Metric") +
+  theme_minimal()
+correlation_mf <- cor(mf_players$MP, mf_players$PerformanceMetric, use = "complete.obs")
+print(paste("Pearson correlation coefficient for MF players:", correlation_mf))
+```
+
+```{r}
+# Filter for DF players based on the 'Pos' column
+df_players <- df[df$Pos == 'DF', ]
+```
+
+
+```{r}
+# Fit a linear model for PerformanceMetric as a function of Age for DF players
+linear_model_df_age <- lm(PerformanceMetric ~ Age, data = df_players)
+summary(linear_model_df_age)
+```
+
+```{r}
+# Fit a linear model for Performance Metric as a function of Matches Played (MP) for DF players
+linear_model_df_mp <- lm(PerformanceMetric ~ MP, data = df_players)
+summary(linear_model_df_mp)
+```
+
+```{r}
+# Create a scatter plot with regression line for Age vs Performance Metric for DF players
+ggplot(df_players, aes(x = Age, y = PerformanceMetric)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Age vs Performance Metric for DF Players",
+       x = "Age",
+       y = "Performance Metric") +
+  theme_minimal()
+
+# Create a scatter plot with regression line for MP vs PerformanceMetric for DF players
+ggplot(df_players, aes(x = MP, y = PerformanceMetric)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Matches Played vs Performance Metric for DF Players",
+       x = "Matches Played",
+       y = "Performance Metric") +
+  theme_minimal()
+
+# Calculate the Pearson correlation coefficient for MP and PerformanceMetric for DF players
+correlation_df <- cor(df_players$MP, df_players$PerformanceMetric, use = "complete.obs")
+print(paste("Pearson correlation coefficient for DF players:", correlation_df))
+
+position_stats <- df %>%
+  group_by(Pos) %>%
+  summarise(
+    MeanPerformance = mean(PerformanceMetric, na.rm = TRUE),
+    SdPerformance = sd(PerformanceMetric, na.rm = TRUE)
+  )
+
+```
+```{r}
+#categorical_cols <- sapply(df, is.factor)
+#categorical_data <- df[, categorical_cols]
+#categorical_data <- categorical_data[,sapply(categorical_data, nlevels) <= 53] # Exclude high cardinality factors
+#categorical_data
+```
+
+
+
+
+
+
+
+
+
+```{r}
+library(randomForest)
+library(dplyr)
+library(caret)
+library(FactoMineR) # for PCA
+string_columns <- sapply(df, is.character)
+df[string_columns] <- lapply(df[string_columns], as.factor)
+numeric_cols <- sapply(df, is.numeric)
+player_data_numeric <- df[, numeric_cols]
+
+
+pca_result <- PCA(player_data_numeric, ncp = 20, graph = TRUE)
+
+
+pca_data <- data.frame(pca_result$ind$coord)
+
+
+categorical_cols <- sapply(df, is.factor)
+categorical_data <- df[, categorical_cols]
+categorical_data <- categorical_data[,sapply(categorical_data, nlevels) <= 53] # Exclude high cardinality factors
+
+
+final_data <- cbind(pca_data, categorical_data)
+
+set.seed(49)
+train_index <- createDataPartition(final_data$Pos, p = 0.8, list = FALSE)
+train_data <- final_data[train_index, ]
+test_data <- final_data[-train_index, ]
+
+
+model <- randomForest(Pos ~ ., data = train_data, importance = TRUE)
+predictions <- predict(model, test_data)
+print('\n')
+confusionMatrix(predictions, test_data$Pos)
+
+importance(model)
+varImpPlot(model)
+```
+```{r}
+
+
+plot(NULL, xlim = c(0, 1), ylim = c(0, 1), 
+     main = "ROC Curve for Multiclass Classification", 
+     xlab = "False Positive Rate", ylab = "True Positive Rate")
+
+# Calculate probabilities for each class
+probabilities <- predict(model, test_data, type = "prob")
+roc_objects <- list()
+
+# Plot ROC curve for each class that has instances in the test data
+for (i in 1:length(levels(test_data$Pos))) {
+  # Create a binary outcome vector for the current class
+  binary_outcome <- as.numeric(test_data$Pos == levels(test_data$Pos)[i])
+  
+  # Check if the current class has instances in the test data
+  if (sum(binary_outcome) > 0 && sum(1 - binary_outcome) > 0) {
+    # Calculate ROC curve
+    roc_objects[[i]] <- roc(binary_outcome, probabilities[, i])
+    
+    # Plot ROC curve for the current class
+    lines(roc_objects[[i]], col = i, lwd = 2)
+  }
+}
+legend("bottomleft", legend = levels(test_data$Pos)[sapply(roc_objects, function(x) !is.null(x))], 
+       col = 1:length(levels(test_data$Pos)), lwd = 2)
+
+
+```
+
+
+
+
+```{r}
+options(scipen = 999)
+
+eigenvalues <- pca_result$eig[, "eigenvalue"]
+
+total_variance <- sum(eigenvalues)
+explained_variance_ratio <- eigenvalues / total_variance
+#print(explained_variance_ratio)
+```
+
+```{r}
+#install.packages("factoextra")
+library(factoextra)
+
+#install.packages("gridExtra")
+library(gridExtra)
+
+# Plot scree plot for top 10 components
+plot(1:20, explained_variance_ratio[1:20], type = "b", 
+     xlab = "Principal Component", ylab = "Explained Variance Ratio",
+     main = "Scree Plot (Top 10 Components)")
+
+# Calculate cumulative explained variance ratio for top 10 components
+cumulative_variance <- cumsum(explained_variance_ratio[1:20])
+
+# Plot cumulative variance plot for top 10 components
+plot(1:20, cumulative_variance, type = "b", 
+     xlab = "Number of Principal Components", ylab = "Cumulative Variance Explained",
+     main = "Cumulative Variance Plot (Top 10 Components)")
+
+
+fviz_pca_var(pca_result, col.var = "blue", axes = c(1, 2))
+# Extract loadings matrix for top 10 components
+loadings <- pca_result$var$coord[, 1:20]
+
+# Plot feature loading plot for top 10 components
+plot(1:ncol(loadings), apply(loadings^2, 2, sum), type = "b", 
+     xlab = "Principal Components", ylab = "Total Squared Loadings",
+     main = "Feature Loading Plot (Top 10 Components)")
+
+
+
+# Plot heatmap of loadings for top 10 components
+heatmap(loadings^2, xlab = "Principal Components", ylab = "Original Features",
+        main = "Heatmap of Loadings (Top 10 Components)")
+
+
+options(repr.plot.width=160, repr.plot.height=12)
+fviz_cos2(pca_result, choice = "var")
+
+fviz_pca_var(pca_result, col.var = "cos2",
+            gradient.cols = c("black", "orange", "green"),
+            repel = TRUE)
+
+
+
+
+
+var <- get_pca_var(pca_result)
+mm<-head(var$cos2)
+
+
+# Assuming your data is stored in a variable named 'var_cos2'
+
+# Convert the data to a data frame
+var_cos2_df <- as.data.frame(mm)
+# Set up a PDF file to save the plots
+pdf("variable_contributions_plots.pdf", width = 20, height = 16)  # Adjust width and height as needed
+
+# Set up a larger plotting area
+par(mfrow = c(2, 5), mar = c(5, 5, 4, 2))  # 2 rows, 5 columns for 10 dimensions, adjust the margin as needed
+
+# Loop through each dimension and plot the contributions of variables
+for (i in 1:10) {
+  plot(1:nrow(var_cos2_df), var_cos2_df[, i], type = "h", main = paste("Dimension", i), xlab = "", ylab = "Contribution", las = 2,
+       xaxt = "n")  # Remove default x-axis labels
+  axis(1, at = 1:nrow(var_cos2_df), labels = rownames(var_cos2_df), las = 2)  # Add row names as x-axis labels
+}
+
+# Reset the plotting layout to default
+par(mfrow = c(1, 1))
+
+# Close the PDF device
+dev.off()
+par(mfrow = c(2, 5), mar = c(5, 5, 4, 2))  # 2 rows, 5 columns for 10 dimensions, adjust the margin as needed
+
+# Loop through each dimension and plot the contributions of variables
+for (i in 1:10) {
+  plot(1:nrow(var_cos2_df), var_cos2_df[, i], type = "h", main = paste("Dimension", i), xlab = "", ylab = "Contribution", las = 2,
+       xaxt = "n")  # Remove default x-axis labels
+  axis(1, at = 1:nrow(var_cos2_df), labels = rownames(var_cos2_df), las = 2)  # Add row names as x-axis labels
+}
+
+# Reset the plotting layout to default
+par(mfrow = c(1, 1))
+```
+
+```{r}
+library(e1071) 
+set.seed(123)
+train_index <- createDataPartition(final_data$Pos, p = 0.8, list = FALSE)
+train_data <- final_data[train_index, ]
+test_data <- final_data[-train_index, ]
+svm_model <- svm(Pos ~ ., data = train_data, kernel = "radial", probability = TRUE)
+svm_predictions <- predict(svm_model, test_data)
+
+
+confusionMatrix(svm_predictions, test_data$Pos)
+
+```
+
+
+
+
+```{r}
+svm_probs <- predict(svm_model, test_data, decision.values = TRUE, probability = TRUE)
+library(pROC)
+
+
+classes <- levels(as.factor(test_data$Pos))
+roc_list <- list()
+for (cls in classes) {
+  response <- ifelse(test_data$Pos == cls, 1, 0)
+  if(length(unique(response)) == 2) {
+    cls_probs <- attr(svm_probs, "probabilities")[, cls]
+    roc_data <- roc(response, cls_probs)
+    roc_list[[cls]] <- roc_data
+  } else {
+    cat("Skipping ROC computation for class:", cls, "as response variable has only one unique value.\n")
+  }
+}
+plot(0, type = "n", xlim = c(0, 1), ylim = c(0, 1), main = "ROC Curves for SVM (Multiclass)", xlab = "False Positive Rate", ylab = "True Positive Rate")
+
+for (i in 1:length(roc_list)) {
+  sens <- roc_list[[i]]$sensitivities
+  spec <- 1 - roc_list[[i]]$specificities
+  lines(1 - spec, sens, col = i)
+}
+legend("bottomleft", legend = names(roc_list), col = 1:length(roc_list), lty = 1)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#install.packages('MASS')
+# Load necessary libraries
+library(MASS)
+library(caret)
+library(randomForest)
+string_columns <- sapply(df, is.character)
+df[string_columns] <- lapply(df[string_columns], as.factor)
+numeric_cols <- sapply(df, is.numeric)
+player_data_numeric <- df[, numeric_cols]
+player_data_numeric$Pos <- df$Pos
+lda_result <- lda(Pos ~ ., data = player_data_numeric)
+lda_data <- predict(lda_result)
+categorical_cols <- sapply(df, is.factor)
+categorical_data <- df[, categorical_cols]
+categorical_data <- categorical_data[, sapply(categorical_data, nlevels) <= 53] # Exclude high cardinality factors
+
+final_data <- cbind(lda_data$x, categorical_data)
+set.seed(49)
+train_index <- createDataPartition(final_data$Pos, p = 0.8, list = FALSE)
+train_data <- final_data[train_index, ]
+test_data <- final_data[-train_index, ]
+model <- randomForest(Pos ~ ., data = train_data, importance = TRUE)
+predictions <- predict(model, test_data)
+confusionMatrix(predictions, test_data$Pos)
+importance(model)
+varImpPlot(model)
+
+```
+
+
+
+```{r}
+
+
+plot(NULL, xlim = c(0, 1), ylim = c(0, 1), 
+     main = "ROC Curve for Multiclass Classification using LDA", 
+     xlab = "False Positive Rate", ylab = "True Positive Rate")
+probabilities <- predict(model, test_data, type = "prob")
+roc_objects <- list()
+for (i in 1:length(levels(test_data$Pos))) {
+  binary_outcome <- as.numeric(test_data$Pos == levels(test_data$Pos)[i])
+  if (sum(binary_outcome) > 0 && sum(1 - binary_outcome) > 0) {
+    roc_objects[[i]] <- roc(binary_outcome, probabilities[, i])
+    lines(roc_objects[[i]], col = i, lwd = 2)
+  }
+}
+legend("bottomleft", legend = levels(test_data$Pos)[sapply(roc_objects, function(x) !is.null(x))], 
+       col = 1:length(levels(test_data$Pos)), lwd = 2)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(e1071)
+set.seed(123)
+train_index <- createDataPartition(final_data$Pos, p = 0.8, list = FALSE)
+train_data <- final_data[train_index, ]
+test_data <- final_data[-train_index, ]
+svm_model <- svm(Pos ~ ., data = train_data, kernel = "radial", probability = TRUE)
+svm_predictions <- predict(svm_model, test_data)
+confusionMatrix(svm_predictions, test_data$Pos)
+
+
+```
+
+
+```{r}
+svm_probs <- predict(svm_model, test_data, decision.values = TRUE, probability = TRUE)
+
+library(pROC)
+classes <- levels(as.factor(test_data$Pos))
+roc_list <- list()
+for (cls in classes) {
+  response <- ifelse(test_data$Pos == cls, 1, 0)
+  if(length(unique(response)) == 2) {
+    cls_probs <- attr(svm_probs, "probabilities")[, cls]
+    roc_data <- roc(response, cls_probs)
+    roc_list[[cls]] <- roc_data
+  } else {
+    cat("Skipping ROC computation for class:", cls, "as response variable has only one unique value.\n")
+  }
+}
+plot(0, type = "n", xlim = c(0, 1), ylim = c(0, 1), main = "ROC Curves for SVM (Multiclass) using LDA", xlab = "False Positive Rate", ylab = "True Positive Rate")
+
+for (i in 1:length(roc_list)) {
+  sens <- roc_list[[i]]$sensitivities
+  spec <- 1 - roc_list[[i]]$specificities
+  lines(1 - spec, sens, col = i)
+}
+legend("bottomleft", legend = names(roc_list), col = 1:length(roc_list), lty = 1)
+```
+
+
